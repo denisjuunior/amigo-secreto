@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <title>Amigo Secreto</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#FF5B3A">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Amigo Secreto">
+  <link rel="apple-touch-icon" href="apple-touch-icon-180.png">
+  <link rel="icon" href="icon-192.png">
+  <style>
+    :root { --tom: #FF5B3A; --creme: #FFF3E2; --mos: #FFC83D; --men: #5FD3A3; --t: #1C1A17; }
+    html, body { margin: 0; height: 100%; background: var(--creme); color: var(--t);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overscroll-behavior: none; }
+    #frame { position: fixed; inset: 0; width: 100%; height: 100vh; height: 100dvh; border: 0; background: var(--creme); }
+    #carregando, #entrada { position: fixed; inset: 0; z-index: 5; background: var(--creme);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px; padding: calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom)); text-align: center; }
+    #entrada { display: none; }
+    .papeis { position: relative; width: 120px; height: 90px; }
+    .papeis i { position: absolute; left: 30px; top: 20px; width: 60px; height: 42px; border: 3px solid var(--t); border-radius: 6px; }
+    .papeis i:nth-child(1) { background: var(--tom); animation: em 1.2s ease-in-out infinite; }
+    .papeis i:nth-child(2) { background: var(--mos); animation: em 1.2s ease-in-out infinite -.4s; }
+    .papeis i:nth-child(3) { background: var(--men); animation: em 1.2s ease-in-out infinite -.8s; }
+    @keyframes em { 0%, 100% { transform: translate(-34px, 6px) rotate(-14deg); } 33% { transform: translate(0, -18px) rotate(4deg); } 66% { transform: translate(34px, 6px) rotate(14deg); } }
+    .msg { font-weight: 700; }
+    #entrada h1 { font-size: 30px; margin: 0; letter-spacing: -.02em; }
+    #entrada p { max-width: 440px; margin: 0; }
+    #entrada input { width: 100%; max-width: 440px; padding: 13px 14px; border: 2.5px solid var(--t); border-radius: 12px; font-size: 16px; }
+    #entrada button { padding: 13px 24px; border: 3px solid var(--t); border-radius: 999px; background: var(--tom);
+      color: var(--t); font-weight: 700; font-size: 16px; box-shadow: 4px 4px 0 var(--t); cursor: pointer; }
+    #entrada button:active { transform: translate(3px, 3px); box-shadow: none; }
+  </style>
+</head>
+<body>
+  <div id="carregando"><div class="papeis"><i></i><i></i><i></i></div><div class="msg">abrindo…</div></div>
+  <div id="entrada">
+    <div class="papeis"><i></i><i></i><i></i></div>
+    <h1>Amigo Secreto</h1>
+    <p>Cole aqui o seu link pessoal (aquele que você recebeu no WhatsApp) para entrar.</p>
+    <input id="link" type="url" inputmode="url" placeholder="https://…" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button id="ok">Entrar</button>
+  </div>
+  <iframe id="frame" title="Amigo Secreto" allow="camera; microphone; clipboard-write; fullscreen" referrerpolicy="no-referrer"></iframe>
+  <script>
+    // >>> troque pela URL /exec da sua implantação, se um dia mudar <<<
+    var APP_URL = "https://script.google.com/macros/s/AKfycbwfYFO8feNPeGY3TgHLESBSCxMTv77M56JbxAaEoWjFTG3lEUWqQoJSZRLrxGGNQj20Fg/exec";
+    var CHAVE = "amigo_secreto_link";
+
+    function query() { try { return new URLSearchParams(location.search); } catch (e) { return new URLSearchParams(); } }
+    function salvar(t, p) { try { localStorage.setItem(CHAVE, JSON.stringify({ t: t || "", p: p || "" })); } catch (e) {} }
+    function lerSalvo() { try { return JSON.parse(localStorage.getItem(CHAVE) || "null"); } catch (e) { return null; } }
+
+    // Aceita: link /exec?t=..&p=.. , link da casca ?t=..&p=.. , ou só o token colado
+    function extrair(txt) {
+      txt = (txt || "").trim();
+      var t = "", p = "";
+      if (txt.indexOf("?") >= 0) {
+        try { var q = new URLSearchParams(txt.slice(txt.indexOf("?") + 1)); t = q.get("t") || ""; p = q.get("p") || ""; } catch (e) {}
+      } else if (/^[a-z0-9]{6,}$/i.test(txt)) {
+        t = txt;
+      }
+      return { t: t, p: p };
+    }
+
+    function montar(t, p) {
+      var qs = [];
+      if (p) qs.push("p=" + encodeURIComponent(p));
+      if (t) qs.push("t=" + encodeURIComponent(t));
+      return qs.length ? APP_URL + "?" + qs.join("&") : APP_URL;
+    }
+
+    function carregar(url) {
+      var f = document.getElementById("frame");
+      f.onload = function () { document.getElementById("carregando").style.display = "none"; };
+      f.src = url;
+    }
+
+    (function () {
+      var q = query();
+      if (q.get("novo") !== null) { try { localStorage.removeItem(CHAVE); } catch (e) {} }
+
+      var t = q.get("t") || "", p = q.get("p") || "";
+      if (!t && !p) { var s = lerSalvo(); if (s) { t = s.t || ""; p = s.p || ""; } }
+
+      if (t || p) {
+        salvar(t, p);
+        carregar(montar(t, p));
+      } else {
+        document.getElementById("carregando").style.display = "none";
+        document.getElementById("entrada").style.display = "flex";
+        document.getElementById("link").focus();
+      }
+
+      document.getElementById("ok").onclick = function () {
+        var e = extrair(document.getElementById("link").value);
+        if (!e.t && !e.p) { alert("Cole o link completo que você recebeu no WhatsApp."); return; }
+        salvar(e.t, e.p);
+        document.getElementById("entrada").style.display = "none";
+        document.getElementById("carregando").style.display = "flex";
+        carregar(montar(e.t, e.p));
+      };
+      document.getElementById("link").addEventListener("keydown", function (ev) { if (ev.key === "Enter") document.getElementById("ok").click(); });
+    })();
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+    }
+  </script>
+</body>
+</html>
